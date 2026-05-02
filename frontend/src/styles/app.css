@@ -1,0 +1,253 @@
+/* SparrowPay global styles. Keeps the polished mobile-banking aesthetic
+   from the original app while playing nicely with Bootstrap. */
+
+:root {
+  --sp-primary: #4A1A86;
+  --sp-primary-hover: #3E1572;
+  --sp-bg: #F4F1F8;
+  --sp-card-border: #E5E7EB;
+  --sp-purple-50: #F7F1FF;
+  --sp-purple-100: #EFE7FF;
+  --sp-purple-200: #E2D3FF;
+  --sp-purple-300: #C9A7FF;
+  --sp-text: #111827;
+  --sp-muted: #6B7280;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Phone-frame shell. Uses Bootstrap container outside, custom inside. */
+.sp-shell {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+@media (min-width: 576px) {
+  .sp-shell { padding: 1.5rem; }
+}
+
+.sp-frame {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  height: min(820px, calc(100dvh - 2rem));
+  background: #fff;
+  border: 1px solid var(--sp-card-border);
+  border-radius: 32px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+@media (max-width: 575px) {
+  .sp-frame { height: 100dvh; border-radius: 0; }
+}
+
+/* Page scroll area inside the frame. */
+.sp-page {
+  height: 100%;
+  overflow-y: auto;
+  padding: 2.5rem 1.25rem 6rem;
+}
+
+/* Buttons. */
+.sp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--sp-primary);
+  color: #fff;
+  border: none;
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  width: 100%;
+}
+.sp-btn:hover:not(:disabled) { background: var(--sp-primary-hover); }
+.sp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sp-btn-secondary {
+  background: #fff;
+  color: var(--sp-text);
+  border: 1px solid var(--sp-card-border);
+}
+.sp-btn-secondary:hover:not(:disabled) { background: #F9FAFB; }
+.sp-btn-ghost {
+  background: transparent;
+  color: var(--sp-text);
+  border: 1px solid var(--sp-card-border);
+}
+.sp-btn-danger {
+  background: #DC2626;
+}
+.sp-btn-danger:hover:not(:disabled) { background: #B91C1C; }
+
+/* Input fields. */
+.sp-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  border: 1px solid var(--sp-card-border);
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+}
+.sp-field input,
+.sp-field select {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 0.95rem;
+  width: 100%;
+}
+.sp-field input::placeholder { color: #9CA3AF; }
+
+.sp-field-dark {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sp-field-dark input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font-size: 0.95rem;
+  width: 100%;
+}
+.sp-field-dark input::placeholder { color: rgba(255, 255, 255, 0.55); }
+
+/* Cards. */
+.sp-card {
+  background: #fff;
+  border: 1px solid var(--sp-card-border);
+  border-radius: 1.5rem;
+  padding: 1rem;
+}
+
+/* Pills (filter chips). */
+.sp-pill {
+  display: inline-block;
+  border-radius: 9999px;
+  padding: 0.45rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--sp-card-border);
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.sp-pill:hover { background: #F9FAFB; }
+.sp-pill-active {
+  background: var(--sp-purple-100);
+  border-color: var(--sp-purple-200);
+  color: var(--sp-primary);
+}
+
+/* Bottom nav. */
+.sp-bottom-nav {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: #fff;
+  border-top: 1px solid var(--sp-card-border);
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sp-bottom-nav a {
+  background: transparent;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.7rem;
+  color: var(--sp-muted);
+  cursor: pointer;
+  flex: 1;
+}
+.sp-bottom-nav a.active {
+  color: var(--sp-primary);
+}
+
+/* Modals. */
+.sp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 1rem;
+}
+.sp-modal {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border: 1px solid var(--sp-card-border);
+  border-radius: 1.5rem 1.5rem 0 0;
+  padding: 1.25rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+}
+
+/* Auth gradient background. */
+.sp-auth-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, #7B2FE8, transparent 45%),
+    radial-gradient(circle at 80% 60%, #3B0A7A, transparent 55%),
+    linear-gradient(180deg, #2A0A4D, #6C2BD9, #C9A7FF);
+}
+
+/* Alerts (success / error). */
+.sp-alert {
+  border-radius: 1rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+}
+.sp-alert-error {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+}
+.sp-alert-success {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #166534;
+}
+.sp-alert-warn {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+}
+
+/* Helpers. */
+.sp-text-muted { color: var(--sp-muted); font-size: 0.8rem; }
+.sp-divider { height: 1px; background: #E5E7EB; }
+
+/* Hide Bootstrap's container default padding inside the phone frame. */
+.sp-frame .container, .sp-frame .container-fluid { padding-left: 0; padding-right: 0; }

@@ -1,0 +1,4 @@
+/* Tailwind directives. Tailwind preflight is disabled in tailwind.config.js
+   so we don't fight Bootstrap's reboot. */
+@tailwind components;
+@tailwind utilities;
