@@ -134,7 +134,10 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="sp-text-muted">Balance Out</div>
-                <div style={{ fontWeight: 600 }} title={`-Rs ${stats.out.toLocaleString()}`}>
+                <div
+                  style={{ fontWeight: 600, fontSize: 'clamp(1rem, 2.8vw, 1.2rem)', lineHeight: 1.1, whiteSpace: 'nowrap' }}
+                  title={`-Rs ${stats.out.toLocaleString()}`}
+                >
                   -Rs {formatCompactPKR(stats.out)}
                 </div>
               </div>
@@ -148,7 +151,10 @@ export default function DashboardPage() {
               </div>
               <div>
                 <div className="sp-text-muted">Balance In</div>
-                <div style={{ fontWeight: 600 }} title={`+Rs ${stats.inn.toLocaleString()}`}>
+                <div
+                  style={{ fontWeight: 600, fontSize: 'clamp(1rem, 2.8vw, 1.2rem)', lineHeight: 1.1, whiteSpace: 'nowrap' }}
+                  title={`+Rs ${stats.inn.toLocaleString()}`}
+                >
                   +Rs {formatCompactPKR(stats.inn)}
                 </div>
               </div>
