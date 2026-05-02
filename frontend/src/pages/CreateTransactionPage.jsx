@@ -1,7 +1,7 @@
 // Create transaction page - bank type, mode (transaction/donation),
 // recipient, amount, then PIN modal to confirm.
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Lock, Star, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
@@ -33,6 +33,7 @@ export default function CreateTransactionPage() {
   const [favorites, setFavorites] = useState([]);
   const [favError, setFavError] = useState('');
   const [favLoading, setFavLoading] = useState(true);
+  const ouchRef = useRef(null);
 
   async function loadFavorites() {
     setFavLoading(true);
@@ -98,6 +99,16 @@ export default function CreateTransactionPage() {
         amount: parseAmount(amount),
         pin,
       });
+      try {
+        if (!ouchRef.current) {
+          ouchRef.current = new Audio('/sounds/ouch.mp3');
+          ouchRef.current.preload = 'auto';
+        }
+        ouchRef.current.currentTime = 0;
+        await ouchRef.current.play();
+      } catch {
+        // Ignore playback failures (browser gesture policies, missing device audio, etc.).
+      }
       // Refresh /me so dashboard balance is up to date.
       await refreshMe();
       setPinOpen(false);

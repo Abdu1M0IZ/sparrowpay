@@ -57,14 +57,14 @@ export default function TransactionDetailPage() {
     <div className="sp-page" style={{ padding: 0 }}>
       <div style={{
         background: '#E6D6FF', borderBottom: '1px solid #DCC8FF',
-        padding: '2.5rem 1.25rem 1.25rem', position: 'relative', overflow: 'hidden',
+        padding: '1.9rem 0.95rem 0.95rem', position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', top: -40, right: -40, opacity: 0.1 }}>
           <Bird size={144} color="var(--sp-primary)" />
         </div>
         <div className="d-flex justify-content-between align-items-start" style={{ gap: '0.75rem' }}>
           <div style={{ minWidth: 0 }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 600, lineHeight: 1.1 }}>
+            <h1 style={{ fontSize: '1.35rem', fontWeight: 600, lineHeight: 1.1, margin: 0 }}>
               Sparrow<br />Details
             </h1>
             <div className="d-flex align-items-center mt-2 sp-text-muted" style={{ gap: 6 }}>
@@ -75,9 +75,9 @@ export default function TransactionDetailPage() {
             </div>
           </div>
           <button
-            className="sp-btn sp-btn-secondary"
-            style={{
-              borderRadius: 9999, width: 'auto', padding: '0.4rem 0.85rem',
+              className="sp-btn sp-btn-secondary"
+              style={{
+              borderRadius: 9999, width: 'auto', padding: '0.32rem 0.72rem', fontSize: '0.78rem',
               background: 'rgba(255,255,255,0.8)', flexShrink: 0,
             }}
           >
@@ -86,7 +86,7 @@ export default function TransactionDetailPage() {
         </div>
       </div>
 
-      <div style={{ padding: '1.25rem 1.25rem 6rem' }}>
+      <div style={{ padding: '0.95rem 0.95rem 5.5rem' }}>
         <div className="sp-card">
           <div className="d-flex align-items-start" style={{ gap: '0.75rem' }}>
             <div style={{ height: 40, width: 40, borderRadius: '50%', background: 'var(--sp-purple-100)', border: '1px solid var(--sp-purple-200)' }}
@@ -128,7 +128,7 @@ export default function TransactionDetailPage() {
               </div>
               <div style={{ minWidth: 0 }}>
                 <div className="sp-text-muted">Amount</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 600 }}>Rs. {Number(tx.amount).toLocaleString()}</div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 600 }}>Rs. {Number(tx.amount).toLocaleString()}</div>
                 <div className="sp-text-muted mt-1" style={{ wordBreak: 'break-all' }}>
                   <strong style={{ color: 'var(--sp-text)' }}>Sparrow ID:</strong> {tx.id}
                 </div>
@@ -145,12 +145,12 @@ export default function TransactionDetailPage() {
         </div>
 
         <div className="row g-2 mt-3">
-          <div className="col-12 col-sm-6">
+          <div className="col-12">
             <button className="sp-btn sp-btn-secondary" onClick={copyId}>
               {copied ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy ID</>}
             </button>
           </div>
-          <div className="col-12 col-sm-6">
+          <div className="col-12">
             <button className="sp-btn" onClick={() => navigate('/app/history')}>Back to history</button>
           </div>
         </div>

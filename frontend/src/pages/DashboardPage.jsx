@@ -163,7 +163,7 @@ export default function DashboardPage() {
       <div className="mt-4">
         <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>Quick actions</div>
         <div className="row g-2 mt-2">
-          <div className="col-12 col-sm-6">
+          <div className="col-6">
             <button
               className="sp-card text-start w-100"
               style={{ cursor: 'pointer' }}
@@ -177,7 +177,7 @@ export default function DashboardPage() {
               <div className="sp-text-muted">Transaction</div>
             </button>
           </div>
-          <div className="col-12 col-sm-6">
+          <div className="col-6">
             <button
               className="sp-card text-start w-100"
               style={{ cursor: 'pointer' }}
