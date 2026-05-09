@@ -18,6 +18,7 @@ import ChangePasswordPage from '../pages/ChangePasswordPage.jsx';
 import ChangePinPage from '../pages/ChangePinPage.jsx';
 import ForgotPinPage from '../pages/ForgotPinPage.jsx';
 import SupportPage from '../pages/SupportPage.jsx';
+import FavoritesPage from '../pages/FavoritesPage.jsx';
 import NotFoundPage from '../pages/NotFoundPage.jsx';
 
 export default function AppRouter() {
@@ -44,7 +45,7 @@ export default function AppRouter() {
         <Route path="create" element={<CreateTransactionPage />} />
         <Route path="history" element={<TransactionHistoryPage />} />
         <Route path="history/:transactionId" element={<TransactionDetailPage />} />
-        <Route path="favorites" element={<Navigate to="/app/create" replace />} />
+        <Route path="favorites" element={<FavoritesPage />} />
         <Route path="account" element={<AccountDetailsPage />} />
         <Route path="account/change-password" element={<ChangePasswordPage />} />
         <Route path="account/change-pin" element={<ChangePinPage />} />

@@ -1,113 +1,282 @@
-// Donation controller (simplified MERN implementation).
+// Donation controller - RSA blind-signature flow.
 //
-// The original Python backend used RSA blind signatures for unlinkable
-// donations. We replace that with a straightforward, fully dynamic flow:
-//   - GET  /api/donations/bank-key    -> simple metadata response
-//   - POST /api/donations/mint        -> debit wallet, issue N opaque tokens
-//   - POST /api/donations/redeem      -> mark tokens redeemed by recipient
+// The donor's mint and the recipient's redeem are unlinkable in the database:
+//   - mint sees blinded serials only (the donor multiplies the SHA-256 hash
+//     by r^e for a random per-token blinder r before sending). No serial,
+//     no signature, ever touches the donor's request payload in plaintext.
+//   - redeem sees the unblinded (serial, sig) pairs but has no reference to
+//     who minted them. The recipient is named explicitly because the credit
+//     has to land somewhere, but the donor identity is already gone.
 //
-// Tokens are random hex strings; the SHA-256 hash is stored. Recipients can
-// redeem unique tokens once. This satisfies the "dynamic database-backed
-// donation flow" requirement called out in the refactor prompt.
+// Per spec, denomination is fixed at 1 PKR per token. count === amount is
+// enforced server-side, eliminating inflation attacks. Mints over 200 PKR
+// must be chunked client-side.
 
 const crypto = require('crypto');
-const env = require('../config/env');
+const mongoose = require('mongoose');
+
 const User = require('../models/User');
 const Account = require('../models/Account');
-const Donation = require('../models/Donation');
-const { BadRequestError, ForbiddenError } = require('../utils/errors');
+const DonationRedeemed = require('../models/DonationRedeemed');
+const DonationMintAudit = require('../models/DonationMintAudit');
+const Transaction = require('../models/Transaction');
 
-function sha256Hex(s) {
-  return crypto.createHash('sha256').update(s).digest('hex');
+const bankRsa = require('../config/bankRsa');
+const ac = require('../utils/anonymousCrypto');
+const { encryptField } = require('../utils/crypto');
+const { BadRequestError, ForbiddenError, NotFoundError } = require('../utils/errors');
+
+const MAX_COUNT_PER_MINT = 200;
+
+function sha256Hex(buf) {
+  return crypto.createHash('sha256').update(buf).digest('hex');
 }
 
-// GET /api/donations/bank-key
+// GET /api/donations/bank-key - public, returns the RSA public params.
 async function bankKey(_req, res) {
   return res.json({
     success: true,
-    note: 'Simplified donation tokens. SHA-256 of token is stored server-side.',
-    algorithm: 'sha256-token',
+    n_b64url: bankRsa.nB64url,
+    e: bankRsa.eNumber,
+    algorithm: 'RSA-2048-blind-SHA256',
     issuer: 'sparrowpay',
+    maxCountPerMint: MAX_COUNT_PER_MINT,
+    denomination: 1,
   });
 }
 
-// POST /api/donations/mint
+// POST /api/donations/mint - authenticated. Debits the donor and signs the
+// blinded serials. Returns one signature per blinded value. The serials and
+// the unblinded signatures stay client-side; the bank never learns them.
 async function mint(req, res, next) {
   try {
-    const { amount, count, pin } = req.body;
     const user = req.user;
+    const { blindedSerials, amount, pin } = req.body;
+
+    // Schema has already validated array shape and ranges; reaffirm the
+    // count-amount invariant here because it's a domain rule, not a syntax rule.
+    const count = blindedSerials.length;
+    if (count !== amount) {
+      throw new BadRequestError('count must equal amount (denomination is 1 PKR per token).');
+    }
+    if (count < 1 || count > MAX_COUNT_PER_MINT) {
+      throw new BadRequestError(`count must be 1..${MAX_COUNT_PER_MINT}.`);
+    }
 
     const pinOk = await User.verifySecret(pin, user.pinHash);
     if (!pinOk) throw new ForbiddenError('Invalid PIN.');
 
-    const total = Number(amount);
-    const n = Number(count);
-    if (!Number.isFinite(total) || total <= 0) throw new BadRequestError('amount must be > 0.');
-    if (!Number.isInteger(n) || n < 1 || n > 50) throw new BadRequestError('count must be 1..50.');
+    // Parse all blinded inputs up front. Reject early if any are malformed
+    // or out of [0, n) range, before we touch the database.
+    const blindedBigInts = [];
+    for (const s of blindedSerials) {
+      let b;
+      try {
+        b = ac.b64urlToBigInt(s);
+      } catch {
+        throw new BadRequestError('Malformed blinded serial.');
+      }
+      if (b < 0n || b >= bankRsa.n) {
+        throw new BadRequestError('Blinded value out of range.');
+      }
+      blindedBigInts.push(b);
+    }
 
-    const acct = await Account.findOne({ user: user._id });
-    if (!acct || acct.balance < total) throw new BadRequestError('Insufficient funds.');
+    // Sign all blinded values. We do this BEFORE the DB session below so
+    // any signing failure aborts cleanly without holding a Mongo transaction
+    // open. signBlinded is OpenSSL-backed and ~1ms per call.
+    const signedBigInts = blindedBigInts.map((b) => bankRsa.signBlinded(b));
 
-    acct.balance -= total;
-    await acct.save();
+    // Now persist the audit, debit, and the donor-facing transaction in a
+    // single Mongo transaction so the ledger can never be partially updated.
+    let createdSenderTx = null;
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const debit = await Account.findOneAndUpdate(
+          { user: user._id, balance: { $gte: amount } },
+          { $inc: { balance: -amount } },
+          { new: true, session }
+        );
+        if (!debit) throw new BadRequestError('Insufficient funds.');
 
-    const perToken = Number((total / n).toFixed(2));
-    const tokens = [];
-    for (let i = 0; i < n; i += 1) {
-      const tok = crypto.randomBytes(24).toString('hex');
-      tokens.push(tok);
-      // eslint-disable-next-line no-await-in-loop
-      await Donation.create({
-        serialHash: sha256Hex(tok),
-        issuedToUser: user._id,
-        amount: perToken,
+        const metadataEnc = encryptField(JSON.stringify({
+          donorId: user._id.toString(),
+          amount,
+          count,
+          ts: new Date().toISOString(),
+        }));
+
+        await DonationMintAudit.create([{
+          donor: user._id,
+          amount,
+          count,
+          metadataEnc,
+        }], { session });
+
+        const [txDoc] = await Transaction.create([{
+          user: user._id,
+          kind: 'donation',
+          bankType: 'SparrowPay',
+          toLabel: 'Anonymous Donation',
+          amount,
+          status: 'Completed',
+          meta: 'SparrowPay • Anonymous Donation',
+        }], { session });
+        createdSenderTx = txDoc;
       });
+    } finally {
+      session.endSession();
     }
 
     return res.json({
       success: true,
-      tokens,
-      perTokenAmount: perToken,
-      issuer: 'sparrowpay',
-      note: 'Each token can be redeemed exactly once.',
+      signatures: signedBigInts.map((s) => ac.bigIntToB64url(s, bankRsa.modulusByteLen)),
+      n_b64url: bankRsa.nB64url,
+      e: bankRsa.eNumber,
+      donorTransaction: createdSenderTx ? createdSenderTx.toPublic() : null,
     });
   } catch (err) {
     return next(err);
   }
 }
 
-// POST /api/donations/redeem
+// POST /api/donations/redeem - bearer-token model, no auth header.
+//
+// Anyone holding (serial, sig) pairs can redeem them. Each token can only be
+// redeemed once (enforced by serialHash unique index). Recipient must be a
+// SparrowPay user (by username); the credit lands in their account.
 async function redeem(req, res, next) {
   try {
-    const { tokens, recipientLabel } = req.body;
+    const { tokens, recipient: recipientName } = req.body;
+
     if (!Array.isArray(tokens) || tokens.length === 0) {
       throw new BadRequestError('tokens must be a non-empty array.');
     }
-
-    let redeemed = 0;
-    let credited = 0;
-    for (const t of tokens) {
-      if (typeof t !== 'string' || !t) continue;
-      const sh = sha256Hex(t);
-      // eslint-disable-next-line no-await-in-loop
-      const doc = await Donation.findOne({ serialHash: sh, redeemed: false });
-      if (!doc) continue;
-      doc.redeemed = true;
-      doc.redeemedAt = new Date();
-      doc.recipientLabel = recipientLabel || '';
-      // eslint-disable-next-line no-await-in-loop
-      await doc.save();
-      redeemed += 1;
-      credited += Number(doc.amount);
+    if (tokens.length > MAX_COUNT_PER_MINT) {
+      throw new BadRequestError(`tokens length must be 1..${MAX_COUNT_PER_MINT}.`);
     }
 
-    if (redeemed === 0) throw new BadRequestError('No valid tokens redeemed.');
+    const recipient = await User.findOne({ username: recipientName });
+    if (!recipient) throw new NotFoundError('Recipient SparrowPay user not found.');
+
+    // First pass: cryptographic verification. Any token failing this is
+    // rejected silently (we just don't credit it). Tokens that verify are
+    // collected for the second pass which checks for double-spend.
+    const verified = []; // { serialHex, serialHash, sigBigInt }
+    for (const t of tokens) {
+      if (!t || typeof t !== 'object') continue;
+      const { serial: serialHex, sig: sigB64url } = t;
+      if (typeof serialHex !== 'string' || !/^[0-9a-fA-F]{64}$/.test(serialHex)) continue;
+      if (typeof sigB64url !== 'string' || !sigB64url) continue;
+
+      let sig;
+      try {
+        sig = ac.b64urlToBigInt(sigB64url);
+      } catch {
+        continue;
+      }
+      if (sig < 0n || sig >= bankRsa.n) continue;
+
+      const serialBytes = Buffer.from(serialHex, 'hex');
+      if (!ac.verifyToken(serialBytes, sig, bankRsa.e, bankRsa.n)) continue;
+
+      verified.push({
+        serialHex,
+        serialHash: sha256Hex(serialHex),
+        sigBigInt: sig,
+      });
+    }
+
+    if (verified.length === 0) {
+      throw new BadRequestError('No valid tokens redeemed.');
+    }
+
+    // Second pass: try to insert each verified token's serialHash into
+    // DonationRedeemed. The unique index on serialHash atomically rejects
+    // double-spends. We do the inserts inside a Mongo transaction together
+    // with the recipient's balance increment and the recipient-facing
+    // transaction record.
+    let creditedAmount = 0;
+    let redeemedCount = 0;
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const inserts = [];
+        for (const v of verified) {
+          // Pre-check by querying first; we still rely on the unique index
+          // for the actual race-safety guarantee, but a query here lets us
+          // surface "already spent" without burning insert errors in the
+          // common case.
+          // eslint-disable-next-line no-await-in-loop
+          const exists = await DonationRedeemed.findOne(
+            { serialHash: v.serialHash },
+            { _id: 1 },
+            { session }
+          );
+          if (exists) continue;
+          inserts.push({
+            serialHash: v.serialHash,
+            recipient: recipient._id,
+            amount: 1,
+            redeemedAt: new Date(),
+          });
+        }
+
+        // ordered:false so a single duplicate-key error (raced double-spend)
+        // doesn't abort the entire batch.
+        if (inserts.length > 0) {
+          try {
+            const written = await DonationRedeemed.insertMany(inserts, {
+              session,
+              ordered: false,
+            });
+            redeemedCount = written.length;
+          } catch (e) {
+            // BulkWriteError still returns a partial result on insertedDocs
+            // for ordered:false. Mongoose surfaces it as e.insertedDocs.
+            if (e && Array.isArray(e.insertedDocs)) {
+              redeemedCount = e.insertedDocs.length;
+            } else {
+              throw e;
+            }
+          }
+        }
+
+        if (redeemedCount === 0) {
+          // All tokens were already spent. Roll back by throwing - the
+          // session.withTransaction wrapper will abort.
+          throw new BadRequestError('No valid tokens redeemed.');
+        }
+
+        creditedAmount = redeemedCount; // 1 PKR per token
+
+        await Account.findOneAndUpdate(
+          { user: recipient._id },
+          { $inc: { balance: creditedAmount } },
+          { new: true, session }
+        );
+
+        await Transaction.create([{
+          user: recipient._id,
+          kind: 'donation',
+          bankType: 'SparrowPay',
+          toLabel: 'Anonymous Donor',
+          amount: creditedAmount,
+          status: 'Received',
+          meta: 'SparrowPay • Anonymous Donation Received',
+        }], { session });
+      });
+    } finally {
+      session.endSession();
+    }
+
     return res.json({
       success: true,
-      redeemed_count: redeemed,
-      redeemedCount: redeemed,
-      credited_amount: credited,
-      creditedAmount: credited,
+      redeemedCount,
+      redeemed_count: redeemedCount,    // legacy alias
+      creditedAmount,
+      credited_amount: creditedAmount,  // legacy alias
       status: 'ok',
     });
   } catch (err) {
@@ -115,4 +284,9 @@ async function redeem(req, res, next) {
   }
 }
 
-module.exports = { bankKey, mint, redeem, _initialBalance: env.initialBalance };
+module.exports = {
+  bankKey,
+  mint,
+  redeem,
+  MAX_COUNT_PER_MINT,
+};
