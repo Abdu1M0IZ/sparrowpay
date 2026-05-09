@@ -11,7 +11,7 @@ import { formatCompactPKR } from '../utils/format.js';
 import { errorToMessage } from '../services/apiClient.js';
 
 export default function DashboardPage() {
-  const { me } = useAuth();
+  const { me, refreshMe } = useAuth();
   const navigate = useNavigate();
   const [activity, setActivity] = useState([]);
   const [recent, setRecent] = useState([]);
@@ -29,6 +29,8 @@ export default function DashboardPage() {
     async function load() {
       setLoading(true);
       try {
+        // Keep top-card balance in sync with server-side wallet state.
+        await refreshMe();
         const [txs, donations] = await Promise.all([
           listTransactions('transaction'),
           listTransactions('donation'),
@@ -46,8 +48,14 @@ export default function DashboardPage() {
       }
     }
     load();
-    return () => { cancelled = true; };
-  }, [me?.balance]);
+    const timer = setInterval(() => {
+      load();
+    }, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [me?.balance, refreshMe]);
 
   const stats = useMemo(() => {
     const out = activity

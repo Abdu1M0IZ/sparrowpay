@@ -121,6 +121,10 @@ export default function CreateTransactionPage() {
       navigate(`/app/history/${created.id}`, { replace: true });
     } catch (e) {
       setError(normalizeTxError(errorToMessage(e)));
+      // Donations can partially complete before an error is surfaced
+      // (e.g., timeout on a later chunk). Refresh wallet state so sender
+      // sees actual debited balance immediately.
+      try { await refreshMe(); } catch { /* best-effort */ }
     } finally {
       setSubmitting(false);
     }
