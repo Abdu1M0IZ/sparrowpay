@@ -183,6 +183,11 @@ async function forgotPin(req, res, next) {
     if (!pwdOk) throw new UnauthorizedError('Invalid password.');
     user.pinHash = await User.hashSecret(newPin);
     await user.save();
+    // Revoke all refresh tokens. The PIN gates transaction creation and the
+    // forgot-PIN flow could be used by an attacker who knows the password to
+    // hijack PIN-protected actions; killing existing sessions keeps the
+    // semantics consistent with reset-password-by-pin.
+    await RefreshToken.updateMany({ user: user._id, revoked: false }, { $set: { revoked: true } });
     return res.json({ success: true, status: 'ok' });
   } catch (err) {
     return next(err);

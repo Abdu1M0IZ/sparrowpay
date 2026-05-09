@@ -94,6 +94,30 @@ describe('Transactions', () => {
     expect(r.status).toBe(200);
     expect(r.body.items.length).toBe(3);
   });
+
+  test('rejects SparrowPay donations on /transactions (must use /donations)', async () => {
+    const sender = await signupAndLogin();
+    await signupAndLogin(sampleSignup({
+      username: 'charity', phone: '0301-2222222', cnic: '35202-2222222-2',
+    }));
+    const r = await request()
+      .post('/api/transactions')
+      .set(await authHeader(sender.accessToken))
+      .send({ kind: 'donation', bankType: 'SparrowPay', to: 'charity', amount: 50, pin: '1234' });
+    expect(r.status).toBe(400);
+    expect(r.body.message).toMatch(/\/api\/donations/i);
+  });
+
+  test('external-bank donation anonymizes the stored recipient label', async () => {
+    const { accessToken } = await signupAndLogin();
+    const r = await request()
+      .post('/api/transactions')
+      .set(await authHeader(accessToken))
+      .send({ kind: 'donation', bankType: 'SadaPay', to: 'Edhi Foundation', amount: 250, pin: '1234' });
+    expect(r.status).toBe(201);
+    expect(r.body.to).toBe('Anonymous Donation');
+    expect(r.body.meta).not.toMatch(/Edhi/);
+  });
 });
 
 describe('Favorites', () => {

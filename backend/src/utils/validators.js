@@ -93,14 +93,25 @@ const favoriteCheckSchema = Joi.object({
 });
 
 const donationMintSchema = Joi.object({
-  amount: Joi.number().positive().required(),
-  count: Joi.number().integer().min(1).max(50).required(),
+  blindedSerials: Joi.array()
+    .items(Joi.string().min(1).max(2048))
+    .min(1)
+    .max(200)
+    .required(),
+  amount: Joi.number().integer().min(1).max(200).required(),
   pin: Joi.string().length(4).pattern(/^\d{4}$/).required(),
 });
 
 const donationRedeemSchema = Joi.object({
-  recipientLabel: Joi.string().trim().max(128).allow('', null),
-  tokens: Joi.array().items(Joi.string().min(1)).min(1).max(200).required(),
+  recipient: Joi.string().trim().min(1).max(64).required(),
+  tokens: Joi.array()
+    .items(Joi.object({
+      serial: Joi.string().hex().length(64).required(),
+      sig: Joi.string().min(1).max(2048).required(),
+    }))
+    .min(1)
+    .max(200)
+    .required(),
 });
 
 // ---------- Middleware factory ----------

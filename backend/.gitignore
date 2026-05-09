@@ -6,6 +6,11 @@ node_modules/
 .env.local
 .env.*.local
 
+# Auto-generated RSA keypair for the donation blind-signature flow.
+# A fresh keypair is generated on first boot and persisted to this path
+# unless BANK_RSA_PRIVATE_PEM is set in the environment.
+.bank_rsa.pem
+
 # Logs
 logs/
 *.log

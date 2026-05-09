@@ -15,6 +15,7 @@ export default function TransactionDetailPage() {
   const [tx, setTx] = useState(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [shareMsg, setShareMsg] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +37,35 @@ export default function TransactionDetailPage() {
     navigator?.clipboard?.writeText?.(tx.id);
     setCopied(true);
     setTimeout(() => setCopied(false), 900);
+  }
+
+  // Use the Web Share API where available (mobile / modern browsers); fall back
+  // to copying a human-readable summary to the clipboard.
+  async function onShare() {
+    if (!tx) return;
+    const summary =
+      `SparrowPay ${tx.kind === 'donation' ? 'donation' : 'transfer'} of ` +
+      `Rs ${Number(tx.amount).toLocaleString()} to ${tx.to} ` +
+      `(${tx.bank_type}). Sparrow ID: ${tx.id}`;
+    const url = typeof window !== 'undefined' ? window.location.href : '';
+    try {
+      if (navigator?.share) {
+        await navigator.share({ title: 'SparrowPay', text: summary, url });
+        setShareMsg('Shared.');
+      } else if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(`${summary}\n${url}`);
+        setShareMsg('Copied to clipboard.');
+      } else {
+        setShareMsg('Sharing is not supported in this browser.');
+      }
+    } catch (e) {
+      // AbortError fires if the user dismisses the native share sheet; ignore it.
+      if (e?.name !== 'AbortError') {
+        setShareMsg('Could not share. Please copy manually.');
+      }
+    } finally {
+      setTimeout(() => setShareMsg(''), 1400);
+    }
   }
 
   if (error) {
@@ -76,6 +106,7 @@ export default function TransactionDetailPage() {
           </div>
           <button
               className="sp-btn sp-btn-secondary"
+              onClick={onShare}
               style={{
               borderRadius: 9999, width: 'auto', padding: '0.32rem 0.72rem', fontSize: '0.78rem',
               background: 'rgba(255,255,255,0.8)', flexShrink: 0,
@@ -84,6 +115,15 @@ export default function TransactionDetailPage() {
             <Share2 size={14} /> Share
           </button>
         </div>
+        {shareMsg ? (
+          <div
+            className="mt-2"
+            style={{ fontSize: 12, color: 'var(--sp-primary)', fontWeight: 500 }}
+            role="status"
+          >
+            {shareMsg}
+          </div>
+        ) : null}
       </div>
 
       <div style={{ padding: '0.95rem 0.95rem 5.5rem' }}>

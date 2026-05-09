@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  UserRound, KeyRound, Lock, LifeBuoy, LogOut, ChevronRight, Edit2, Save, X,
+  UserRound, KeyRound, Lock, LifeBuoy, LogOut, ChevronRight, Edit2, Save, X, Star,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 import { ErrorAlert, SuccessAlert } from '../components/common/Alerts.jsx';
@@ -50,6 +50,10 @@ export default function AccountDetailsPage() {
   }
 
   const cells = [
+    {
+      Icon: Star, label: 'Favourites', sub: 'Saved beneficiaries',
+      onClick: () => navigate('/app/favorites'),
+    },
     {
       Icon: KeyRound, label: 'Change Password', sub: 'Requires current password',
       onClick: () => navigate('/app/account/change-password'),
