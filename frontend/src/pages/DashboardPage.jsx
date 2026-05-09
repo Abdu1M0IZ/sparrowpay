@@ -277,7 +277,10 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="d-flex flex-column gap-2 mt-2">
-            {filteredRecent.map((t) => (
+            {filteredRecent.map((t) => {
+              const isReceived = String(t.status || '').toLowerCase() === 'received';
+              const partyLabel = `${isReceived ? 'From' : 'To'}: ${t.to}`;
+              return (
               <button
                 key={t.id}
                 className="sp-card text-start w-100"
@@ -286,7 +289,7 @@ export default function DashboardPage() {
               >
                 <div className="d-flex justify-content-between align-items-center" style={{ gap: '0.75rem' }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600 }} className="text-truncate">{t.to}</div>
+                    <div style={{ fontWeight: 600 }} className="text-truncate">{partyLabel}</div>
                     <div className="sp-text-muted text-truncate">{t.meta || t.bank_type}</div>
                   </div>
                   <div className="text-end flex-shrink-0">
@@ -295,7 +298,8 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

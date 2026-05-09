@@ -18,7 +18,7 @@ const BANKS = ['SparrowPay', 'SadaPay', 'JazzCash'];
 export default function CreateTransactionPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { refreshMe } = useAuth();
+  const { me, refreshMe } = useAuth();
 
   const [kind, setKind] = useState(location.state?.kind || 'transaction');
   const [bankType, setBankType] = useState(location.state?.prefillBank || 'SparrowPay');
@@ -82,6 +82,10 @@ export default function CreateTransactionPage() {
     const amt = parseAmount(amount);
     if (!to.trim() || amt <= 0) {
       setError('Please enter Account Name and Amount.');
+      return;
+    }
+    if (amt > Number(me?.balance || 0)) {
+      setError('Insufficient funds.');
       return;
     }
     setPinOpen(true);

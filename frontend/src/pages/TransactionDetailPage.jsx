@@ -43,9 +43,13 @@ export default function TransactionDetailPage() {
   // to copying a human-readable summary to the clipboard.
   async function onShare() {
     if (!tx) return;
+    const isReceived = String(tx.status || '').toLowerCase() === 'received';
+    const meName = me?.fullName || me?.full_name || me?.username || 'You';
+    const fromName = isReceived ? tx.to : meName;
+    const toName = isReceived ? meName : tx.to;
     const summary =
       `SparrowPay ${tx.kind === 'donation' ? 'donation' : 'transfer'} of ` +
-      `Rs ${Number(tx.amount).toLocaleString()} to ${tx.to} ` +
+      `Rs ${Number(tx.amount).toLocaleString()} from ${fromName} to ${toName} ` +
       `(${tx.bank_type}). Sparrow ID: ${tx.id}`;
     const url = typeof window !== 'undefined' ? window.location.href : '';
     try {
@@ -82,6 +86,14 @@ export default function TransactionDetailPage() {
   }
 
   const created = new Date(tx.created_at || tx.createdAt || Date.now());
+  const isReceived = String(tx.status || '').toLowerCase() === 'received';
+  const meName = me?.fullName || me?.full_name || me?.username || 'You';
+  const fromName = isReceived ? tx.to : meName;
+  const toName = isReceived ? meName : tx.to;
+  const fromMeta = isReceived
+    ? (tx.kind === 'donation' ? 'Anonymous sender' : tx.bank_type)
+    : (me?.phone ? `Phone: ${me.phone}` : '');
+  const toMeta = tx.kind === 'donation' ? 'Recipient minimized' : tx.bank_type;
 
   return (
     <div className="sp-page" style={{ padding: 0 }}>
@@ -135,8 +147,8 @@ export default function TransactionDetailPage() {
             </div>
             <div style={{ minWidth: 0 }}>
               <div className="sp-text-muted">From</div>
-              <div style={{ fontWeight: 600 }} className="text-truncate">{me?.fullName || me?.full_name || me?.username || 'You'}</div>
-              <div className="sp-text-muted text-truncate">{me?.phone ? `Phone: ${me.phone}` : ''}</div>
+              <div style={{ fontWeight: 600 }} className="text-truncate">{fromName}</div>
+              <div className="sp-text-muted text-truncate">{fromMeta}</div>
             </div>
           </div>
           <div className="sp-divider mt-3" />
@@ -147,10 +159,8 @@ export default function TransactionDetailPage() {
             </div>
             <div style={{ minWidth: 0 }}>
               <div className="sp-text-muted">To</div>
-              <div style={{ fontWeight: 600 }} className="text-truncate">{tx.to}</div>
-              <div className="sp-text-muted text-truncate">
-                {tx.kind === 'donation' ? 'Recipient minimized' : tx.bank_type}
-              </div>
+              <div style={{ fontWeight: 600 }} className="text-truncate">{toName}</div>
+              <div className="sp-text-muted text-truncate">{toMeta}</div>
             </div>
           </div>
         </div>

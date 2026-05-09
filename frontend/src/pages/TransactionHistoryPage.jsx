@@ -59,7 +59,10 @@ export default function TransactionHistoryPage() {
         <div className="sp-card mt-4 sp-text-muted">No items yet.</div>
       ) : (
         <div className="d-flex flex-column gap-2 mt-4">
-          {items.map((t) => (
+          {items.map((t) => {
+            const isReceived = String(t.status || '').toLowerCase() === 'received';
+            const partyLabel = `${isReceived ? 'From' : 'To'}: ${t.to}`;
+            return (
             <button
               key={t.id}
               className="sp-card text-start w-100"
@@ -73,7 +76,7 @@ export default function TransactionHistoryPage() {
                     <Bird size={20} color="var(--sp-primary)" />
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 600 }} className="text-truncate">{t.to}</div>
+                    <div style={{ fontWeight: 600 }} className="text-truncate">{partyLabel}</div>
                     <div className="sp-text-muted text-truncate">{t.meta || t.bank_type}</div>
                   </div>
                 </div>
@@ -89,7 +92,8 @@ export default function TransactionHistoryPage() {
                 </div>
               </div>
             </button>
-          ))}
+            );
+          })}
         </div>
       )}
 

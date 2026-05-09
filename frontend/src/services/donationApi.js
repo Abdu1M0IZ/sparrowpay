@@ -20,6 +20,7 @@
 // completions can resume cleanly.
 
 import { apiClient } from './apiClient.js';
+import { checkUsername } from './authApi.js';
 import {
   blindSerial, unblindSig, bytesToHex, bigIntToB64url,
   b64urlToBigInt,
@@ -62,6 +63,14 @@ async function redeemChunk({ tokens, recipient }) {
     tokens, recipient,
   });
   return data;
+}
+
+async function assertRecipientExists(recipient) {
+  const probe = await checkUsername(String(recipient || '').trim());
+  // check-username returns { available: true } when the username does not exist.
+  if (probe?.available) {
+    throw new Error('Recipient SparrowPay user not found.');
+  }
 }
 
 function unblindAll({ signatures, blinders, serials, n }) {
@@ -126,7 +135,10 @@ export async function donateAnonymously({ recipient, amount, pin }) {
   if (total < 1) throw new Error('Amount must be a positive integer.');
   if (!recipient || !String(recipient).trim()) throw new Error('Recipient is required.');
 
-  const { n, e, eNumber } = await getBankKey();
+  // Fail fast before minting/debiting if the recipient username is invalid.
+  await assertRecipientExists(recipient);
+
+  const { n, e } = await getBankKey();
 
   const chunks = [];
   let remaining = total;
@@ -197,6 +209,15 @@ export async function donateAnonymously({ recipient, amount, pin }) {
       throw first instanceof Error ? first : new Error('Donation failed.');
     }
     throw new Error('Donation failed: no transaction created.');
+  }
+
+  if (errors.length > 0 || totalRedeemed !== total) {
+    const sent = Number(totalRedeemed || 0);
+    throw new Error(
+      sent > 0
+        ? `Donation partially processed (Rs ${sent.toLocaleString()} sent). Please retry the remaining amount.`
+        : 'Donation failed before completion. Please try again.'
+    );
   }
 
   return {
